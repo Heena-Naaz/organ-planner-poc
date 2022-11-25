@@ -1,0 +1,25 @@
+%dw 2.0
+
+type auto_ad1061ae_2f2d_4285_b98c_5f465b2e5a0a_Output_Variables_userData = {
+  pincode: Number, 
+  gender: "male", 
+  date_of_birth: String, 
+  last_name: String, 
+  identity_card: "pan_card", 
+  user_type: "donor" | "receiver", 
+  user_id?: Number, 
+  phone: Number, 
+  district?: String, 
+  address_line_1: String, 
+  blood_group: "O-", 
+  address_line_2?: String, 
+  place: String, 
+  state: String, 
+  landmark?: String, 
+  first_name: String, 
+  email: String, 
+  age: Number, 
+  identity_card_number: String, 
+  _?: Any
+}
+

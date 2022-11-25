@@ -1,0 +1,18 @@
+%dw 2.0
+
+type auto_b0e5e6f4_233a_4744_8fe6_92c46298cb7a_Input_Payload = {
+  current_address_line_2?: String, 
+  organ_name: String, 
+  current_place: String, 
+  user_id: Number, 
+  alternate_contact_number: Number, 
+  current_landmark: String, 
+  current_state: String, 
+  current_district?: String, 
+  current_postal_code: Number, 
+  request_id?: Number, 
+  current_address_line_1: String, 
+  status: "open", 
+  _?: Any
+}
+

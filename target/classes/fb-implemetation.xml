@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd 
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
+	
+	<flow name="get-token-flow" doc:id="cb57b4b7-aa01-4022-92af-ce19a3985e7d" >
+		<http:listener doc:name="GET: short-live-access-token" doc:id="04df67e5-fb33-4d19-b125-a52a0cc25e91" config-ref="organ-planner-api-httpListenerConfig" path="/short-live-access-token"/>
+		<os:retrieve doc:name="Retrieve" doc:id="b5322626-d22c-49a9-9084-4d6896c28c47" key="access_token" objectStore="Object_store" target="access_token">
+			<os:default-value ><![CDATA[#[Null]]]></os:default-value>
+		</os:retrieve>
+		<logger level="INFO" doc:name="Logger" doc:id="43c0ac41-6a79-4eac-bffc-6e2114eff990" message="#[vars.access_token]"/>
+		<choice doc:name="check access token" doc:id="8c281f79-accf-4351-bb1d-1e97eb5954f0" >
+			<when expression='#[vars.access_token  == "Null"]'>
+				<http:request method="GET" doc:name="GET Long live user access token" doc:id="8756581e-f48b-4ecc-9194-de59be319e46" config-ref="FB_Request_configuration" path="${fb.version}/oauth/access_token" >
+					<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"grant_type" : "fb_exchange_token",
+	"client_id"	 : 533437601621288,
+	"client_secret":"72293f8b6675ad638c8584f4a5f5427f",
+	"fb_exchange_token":payload.short_access_token
+}]]]></http:uri-params>
+					<http:query-params ><![CDATA[#[output application/java
+---
+{
+	"grant_type" : "fb_exchange_token",
+	"client_id"	 : 533437601621288,
+	"client_secret":"72293f8b6675ad638c8584f4a5f5427f",
+	"fb_exchange_token":payload.short_access_token
+}]]]></http:query-params>
+				</http:request>
+				<logger level="INFO" doc:name="Logger" doc:id="18f1b709-06f4-411d-ac81-b8f81558813d" message="#[payload]"/>
+				<set-variable value="#[payload.access_token]" doc:name="long-live-user-access-token" doc:id="3676cacb-94bb-4391-9db7-97864b17aa7e" variableName="long-live-user-access-token" />
+				<http:request method="GET" doc:name="GET long-live-token" doc:id="5f4327cb-8750-4762-9ce2-702333f8eaa3" config-ref="FB_Request_configuration" path="${fb.version}/${fb.userId}/accounts">
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"access_token" : vars."long-live-user-access-token"
+}]]]></http:uri-params>
+					<http:query-params><![CDATA[#[output application/java
+---
+{
+	"access_token" : vars."long-live-user-access-token"
+}]]]></http:query-params>
+		</http:request>
+				<set-variable value='#[payload.data.access_token joinBy  "" as String]' doc:name="access_token" doc:id="e2f9d2f5-a7f6-40bc-8c8e-51336e57cbdf" variableName="access_token"/>
+				<logger level="INFO" doc:name="Logger" doc:id="95def329-4b7b-4610-b6d9-00c6f5a63a80" message="#[vars.access_token]" />
+				<os:store doc:name="Store" doc:id="8371995d-5d30-4858-8be3-8e0ddd15e2ba" key="access_token" objectStore="Object_store">
+					<os:value ><![CDATA[#[vars.access_token]]]></os:value>
+				</os:store>
+			
+</when>
+			<otherwise >
+				<logger level="INFO" doc:name="Logger" doc:id="8dd21735-0bbc-4f9c-8f61-3d0112935e8e" message='#[vars.access_token]' />
+			</otherwise>
+		</choice>
+		<ee:transform doc:name="Send Token" doc:id="a7253a0b-cb3e-47c0-88e1-528979591b00" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+vars.access_token]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="add-fb-page-feed" doc:id="ad1061ae-2f2d-4285-b98c-5f465b2e5a0a" >
+		<http:listener doc:name="POST: add-page-feed" doc:id="cf99b63a-0051-4970-9b41-b2c2c90203e9" config-ref="organ-planner-api-httpListenerConfig" path="/add-page-feed"/>
+		<flow-ref doc:name="GET Access Token" doc:id="bea6f5c2-a498-4870-a506-1211fef251dc" name="get-token-flow" target="access_token"/>
+		<logger level="INFO" doc:name="Logger" doc:id="d1892e93-1ff3-448a-b1f3-be483881d9a8" message="#[vars.token]"/>
+		<http:request method="POST" doc:name="Request" doc:id="ffc19d01-f5af-444b-9da6-9db8b528358d" config-ref="FB_Request_configuration" path="/${fb.pageId}/feed?">
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"access_token" : vars.access_token,
+	"link"			: payload.link,
+	"message"	:payload.message
+}]]]></http:uri-params>
+			<http:query-params ><![CDATA[#[output application/java
+---
+{
+	"access_token" : vars.access_token,
+	"link"			: payload.link,
+	"message"	:payload.message
+}]]]></http:query-params>
+		</http:request>
+		<logger level="INFO" doc:name="Logger" doc:id="799315a2-9102-411f-b987-3d667d895079" message="#[payload]"/>
+	</flow>
+	
+</mule>

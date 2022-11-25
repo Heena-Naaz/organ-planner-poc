@@ -1,0 +1,378 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:vm="http://www.mulesoft.org/schema/mule/vm"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd">
+	<vm:config name="VM_Config" doc:name="VM Config" doc:id="bd202afc-ef24-44dd-8096-0fa5b2ffbdcd" sendCorrelationId="ALWAYS" >
+		<vm:connection >
+			<reconnection >
+				<reconnect />
+			</reconnection>
+		</vm:connection>
+		<vm:queues >
+			<vm:queue queueName="donate-request-queue" maxOutstandingMessages="1000" />
+			<vm:queue queueName="receive-request-queue" maxOutstandingMessages="1000" />
+		</vm:queues>
+	</vm:config>
+	<sub-flow name="insert-donate-request" doc:id="b0e5e6f4-233a-4744-8fe6-92c46298cb7a" >
+		<db:select doc:name="Select Donation By Donor &amp; Organ" doc:id="e4c282a1-14af-4790-84aa-8107b725f3df" config-ref="Database_Config" target="oldRequest">
+			<db:sql><![CDATA[SELECT request_id FROM donation_requests WHERE donor_id = :donor_id AND organ_name = :organ_name LIMIT 1]]></db:sql>
+			<db:input-parameters><![CDATA[#[{
+  
+  donor_id:payload.user_id,
+  organ_name: payload.organ_name
+  }]]]></db:input-parameters>
+		</db:select>
+		<logger level="INFO" doc:name="Existing Request" doc:id="67f40449-c01e-4b20-85ab-7cbd6e9b44a2" message="#[vars.oldRequest]"/>
+		<choice doc:name="Check If Request Exist" doc:id="1d0e449c-28cc-4b6a-9485-f9341e951c30" >
+			<when expression="#[isEmpty(vars.oldRequest)]">
+				<ee:transform doc:name="address Json Payload" doc:id="0ddb202c-eb67-41f4-98ff-1f749285ea43">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="addressFields"><![CDATA[%dw 2.0
+output application/json
+fun renameKey(key: Key) = key match {
+    case "current_postal_code" -> "pincode"
+    else -> (key)
+}
+fun replaceKeys(key) = key replace "current_" with("")
+
+---
+(payload -- (${common.donateKeys})) mapObject ((value, key, index) -> 
+    {(replaceKeys(renameKey(key))):value}
+)]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+				<http:request method="POST" doc:name="Address Insert SAPI" doc:id="9d76cd99-4afc-4760-9b13-436b93e4b694" config-ref="HTTP_Request_configuration" path="/api/address" target="address">
+			<http:body><![CDATA[#[vars.addressFields]]]></http:body>
+		</http:request>
+				<db:insert doc:name="Insert Donate Request" doc:id="8951fdf9-4342-4d41-9b04-992a80612598" config-ref="Database_Config" autoGenerateKeys="true">
+			<db:sql><![CDATA[INSERT into donation_requests (donor_id,current_address_id,blood_group,organ_name,status,alternate_phone_number,created_at,updated_at) 
+VALUES (:donor_id,:current_address_id,:blood_group,:organ_name,:status,:alternate_phone_number,now(),now())]]></db:sql>
+			<db:parameter-types>
+				<db:parameter-type key="blood_group" type="OTHER" />
+				<db:parameter-type key="status" type="OTHER" />
+			</db:parameter-types>
+			<db:input-parameters><![CDATA[#[{
+  
+  donor_id:payload.user_id,
+  current_address_id:vars.address.address_id,
+  blood_group:payload.blood_group,
+  organ_name:payload.organ_name,
+  status:payload.status,
+  alternate_phone_number:payload.alternate_phone_number,
+  }]]]></db:input-parameters>
+		</db:insert>
+				<vm:publish queueName="donate-request-queue" doc:id="843b3a65-fbeb-4a42-a4c2-bc00a701752f" config-ref="VM_Config" sendCorrelationId="AUTO" doc:name="Publish Recieve Request">
+			<vm:content><![CDATA[#[payload.generatedKeys]]]></vm:content>
+		</vm:publish>
+				<ee:transform doc:name="Send Response" doc:id="f694b0e5-bd77-40ab-9285-b7f06b20e302">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message" : "The Organ Donate Request ID has been created successfully ",
+	"payload": payload
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Send Error" doc:id="cd208ff3-e7bb-4bf5-86a9-01e287f8460e" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message": "This Donation Request is already registered"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+		<logger level="INFO" doc:name="Logger" doc:id="35543795-5e9b-48e1-a5f9-0ff7d0758cee" message="#[payload]" />
+	</sub-flow>
+	<sub-flow name="update-donate-request" doc:id="67bc899a-1029-4b96-9612-8d8fa00fd869" >
+		<logger level="INFO" doc:name="Logger" doc:id="7e570d00-8e96-4015-95e7-a6d281969100" message="#[payload]"/>
+		<db:select doc:name="Select Donate Request By RequestID" doc:id="83ada68e-f5bb-4507-92a7-d09f5aa92e37" config-ref="Database_Config" target="existingRequest">
+			<db:sql ><![CDATA[SELECT request_id,current_address_id FROM donation_requests WHERE request_id = :requestId  LIMIT 1]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{ 
+	requestId: attributes.uriParams.'requestID'
+}]]]></db:input-parameters>
+		</db:select>
+		<logger level="INFO" doc:name="select payload" doc:id="f2dc99e8-f531-4953-99f2-13bd07e43a01" message="#[vars.existingRequest]"/>
+		<choice doc:name="Check If Donate Request Exist" doc:id="a6bd2112-509e-4301-9269-3cb6159b7992" >
+			<when expression="#[sizeOf(vars.existingRequest) == 1]">
+				<ee:transform doc:name="adreessFields" doc:id="19510981-4d20-4379-a141-b0f96f867c27" >
+					<ee:message >
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="addressFields" ><![CDATA[output application/json
+fun renameKey(key: Key) = key match {
+    case "current_postal_code" -> "pincode"
+    else -> (key)
+}
+fun replaceKeys(key) = key replace "current_" with("")
+var donateKeys	= ["status","alternate_contact_number"]
+
+---
+(payload -- donateKeys ) mapObject ((value, key, index) -> 
+    {(replaceKeys(renameKey(key))):value}
+)]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+				<ee:transform doc:name="donateFields" doc:id="e8a4746a-d585-4b04-9bd8-517ddcb74245" >
+					<ee:message >
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="donateFields" ><![CDATA[%dw 2.0
+output application/json skipNullOn="everywhere"
+---
+{
+	"alternate_phone_number": payload.alternate_contact_number,
+	"status"	: payload.status
+}
+]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+				<choice doc:name="check if address fields present in payload to update" doc:id="5e2b9381-a094-4d79-aa53-832dbc4d39bd" >
+					<when expression="#[! isEmpty(vars.addressFields)]">
+						<logger level="INFO" doc:name="Address SAPI" doc:id="7fc39aa6-a259-4567-aea9-2acc0ff4b9d4" message="#[vars.addressFields]"/>
+						<http:request method="PATCH" doc:name="Call Address Update SAPI" doc:id="728dd987-36cd-4733-860c-1d4d438c19f4" config-ref="HTTP_Request_configuration" path="/api/address/{current_address_id}">
+							<http:body ><![CDATA[#[vars.addressFields]]]></http:body>
+							<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	current_address_id : vars.existingRequest.current_address_id reduce $
+}]]]></http:uri-params>
+						</http:request>
+					</when>
+					<otherwise >
+						<logger level="INFO" doc:name="Logger" doc:id="4bad43f0-3250-49dd-a188-db600ebbbc29" message="empty address fields"/>
+					</otherwise>
+				</choice>
+				<choice doc:name="Check if Donate Fields Present in Payload to Update" doc:id="63af7f39-8900-4c28-9c2f-46406804c465" >
+					<when expression="#[!isEmpty(vars.donateFields)]">
+						<ee:transform doc:name="updateDonateQuery" doc:id="aa9fcc06-55b8-48ba-aee9-b9a36a8476df">
+							<ee:message>
+							</ee:message>
+							<ee:variables >
+								<ee:set-variable variableName="updateDonateQuery" ><![CDATA[%dw 2.0
+output application/json
+
+fun queryFields(item) = (item mapObject ((value, key, index) -> (key) : if(typeOf(value) == Number) value else "'" ++ value as String ++ "'" ) pluck ((value, key, index) -> [(key) , value ] joinBy(" = "))) joinBy(", ")
+---
+"UPDATE donation_requests SET " ++ queryFields(vars.donateFields) ++ " WHERE request_id = " ++ attributes.uriParams.'requestID']]></ee:set-variable>
+							</ee:variables>
+						</ee:transform>
+						<logger level="INFO" doc:name="donate query" doc:id="c4823c0d-7f51-42ad-b8f3-a6d1cdcd2adf" message="#[vars.updateDonateQuery]"/>
+						<db:update doc:name="Update Donate Request" doc:id="80b7ac18-6038-4fed-b7ef-5b7a4e0d4a41" config-ref="Database_Config">
+							<db:sql ><![CDATA[#[vars.updateDonateQuery as String]]]></db:sql>
+						</db:update>
+					</when>
+					<otherwise >
+						<logger level="INFO" doc:name="Logger" doc:id="2dd22c0b-c5b1-4ee3-b3a2-e75b517e778d" message="empty donate fields"/>
+					</otherwise>
+				</choice>
+				<logger level="INFO" doc:name="Logger" doc:id="c425cf0f-dd77-4471-ab72-a626b5fcaa27" message="#[vars.donateFields]"/>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Send Request Not Exist Response" doc:id="73bbd2a5-1868-475f-8ad6-451232989168" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message": "Record not found to update"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+		<ee:transform doc:name="Send Response" doc:id="26a51eeb-771c-490d-a45a-1ea988ee7494" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message": "Donation Request updated Successfully"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</sub-flow>
+	<sub-flow name="get-all-donate-request" doc:id="1f3fb3f7-357c-414d-b406-23b51550e36e" >
+		<ee:transform doc:name="Default Select Query" doc:id="97d85c5d-d0c0-4198-ad73-49e77378f20f" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="DefaultQuery" ><![CDATA[%dw 2.0
+output application/java
+---
+"SELECT req.request_id, req.organ_name, req.status, req.hospital_id,req.current_address_id,req.alternate_phone_number,address.landmark, address.address_line_1, address.address_line_2 , address.place , address.district , address.state,users.* from donation_requests as req INNER JOIN users ON users.user_id=req.donor_id inner join address  ON req.current_address_id = address.address_id  "]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<ee:transform doc:name="Query Parameters" doc:id="2f924d17-78d9-4c3b-a877-d2610298d3e2" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="params" ><![CDATA[%dw 2.0
+output application/json skipNullOn="everywhere"
+---
+{
+	"users.blood_group": attributes.queryParams.blood_group,
+	"req.status"	: attributes.queryParams.status,
+	"req.organ_name": attributes.queryParams.organ_name,
+	"address.state": attributes.queryParams.state
+}]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<ee:transform doc:name="Dynamic Query" doc:id="fab7de7d-94d2-4961-ba2f-fa4dbaaddf94" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="dynamicQuery" ><![CDATA[%dw 2.0
+output application/json
+fun getQueryParams(item) = (item mapObject ((value, key, index) -> (key) :  "'" ++ value as String ++ "'" ) pluck ((value, key, index) -> [(key) , value ] joinBy(" = "))) joinBy(" AND ")
+---
+
+if (isEmpty(vars.params)) vars.DefaultQuery
+else
+vars.DefaultQuery ++ " WHERE " ++ getQueryParams(vars.params)]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="8c3f08c1-5071-4ab4-a9b5-02fb1ef94ce4" message="#[vars.dynamicQuery]"/>
+		<db:select doc:name="Select All Donate Requests" doc:id="586d539b-3be6-4d70-bd24-9963748febf9" config-ref="Database_Config">
+			<db:sql ><![CDATA[#[vars.dynamicQuery]]]></db:sql>
+		</db:select>
+		<ee:transform doc:id="f48ddbac-6246-4342-bcc1-236e0bdf06c3" doc:name="Send Response">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+if(isEmpty(payload)) 
+{
+	"message": "No Record Found"
+}
+else
+
+payload map ( payload01 , indexOfPayload01 ) -> {
+	request_id: payload01.request_id,
+	first_name: payload01.first_name,
+	last_name: payload01.last_name,
+	email: payload01.email,
+	phone: payload01.phone default 0,
+	blood_group: payload01.blood_group default "",
+	address_line_1: payload01.address_line_1,
+	place: payload01.place,
+	state: payload01.state,
+	identity_card: payload01.identity_card default "",
+	current_landmark: payload01.landmark default "",
+	current_address_line_1: payload01.address_line_1,
+	current_district: payload01.district default "",
+	alternate_contact_number: payload01.alternate_phone_number[0],
+	organ_name: payload01.organ_name,
+	status: payload01.status default ""
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+	</sub-flow>
+	<sub-flow name="get-donate-request-by-requestId" doc:id="784dd925-cb25-409d-9f6c-3f96f9cde632" >
+		<db:select doc:name="Select by RequestId" doc:id="38f2a292-5c0c-4307-a595-2fdf6cc83cc0" config-ref="Database_Config">
+			<db:sql ><![CDATA[SELECT req.request_id, req.organ_name, req.status, req.hospital_id,req.current_address_id,req.alternate_phone_number,address.landmark, 
+address.address_line_1, address.address_line_2 , address.place , address.district , address.state,users.* 
+from donation_requests as req INNER JOIN users ON users.user_id=req.donor_id inner join address  
+ON req.current_address_id = address.address_id WHERE req.request_id= :requestId LIMIT 1]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{ 
+	requestId: attributes.uriParams.'requestID'
+}]]]></db:input-parameters>
+		</db:select>
+		<ee:transform doc:name="Send Response" doc:id="499874c8-249d-4b3b-b582-50bd6d39e415" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+
+if(isEmpty(payload)) 
+{
+	"message": "No Record Found"
+}
+else
+
+payload map ( payload01 , indexOfPayload01 ) -> {
+	request_id: payload01.request_id,
+	first_name: payload01.first_name,
+	last_name: payload01.last_name,
+	email: payload01.email,
+	phone: payload01.phone default 0,
+	blood_group: payload01.blood_group default "",
+	address_line_1: payload01.address_line_1,
+	place: payload01.place,
+	state: payload01.state,
+	identity_card: payload01.identity_card default "",
+	current_landmark: payload01.landmark default "",
+	current_address_line_1: payload01.address_line_1,
+	current_district: payload01.district default "",
+	alternate_contact_number: payload01.alternate_phone_number[0],
+	organ_name: payload01.organ_name,
+	status: payload01.status default ""
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</sub-flow>
+	<flow name="test-flow" doc:id="83b3e7bb-3340-40ba-a178-23bdec4430d6" >
+		<http:listener doc:name="Listener" doc:id="8ff0944a-8825-449a-b3e5-d1e482c89bd7" config-ref="organ-planner-api-httpListenerConfig" path="/api/test"/>
+		<db:select doc:name="Select" doc:id="01af66a2-d5aa-42fd-a5c4-8a20b92fa025" config-ref="Database_Config">
+			<db:sql ><![CDATA[SELECT user_id, email FROM users WHERE user_id = 1]]></db:sql>
+		</db:select>
+		<logger level="INFO" doc:name="Logger" doc:id="ff2bf954-e58e-4f87-ba62-8ec1788dbe64" message="#[payload]"/>
+		<ee:transform doc:name="Transform Message" doc:id="015b0c8a-ca92-4dbb-8d46-12e0ae4f775b" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="donate-request-implementationFlow" doc:id="1026cd6f-bca6-414a-9eab-9c38458ae7c9" >
+		<vm:listener queueName="donate-request-queue" doc:name="Listener" doc:id="dc5f48c4-5eab-456e-b9df-b51e4535db45" config-ref="VM_Config"/>
+		<logger level="INFO" doc:name="Logger" doc:id="5d811079-2720-4c96-84a8-688902861754" message="#[payload]"/>
+		<ee:transform doc:name="Set Attributes" doc:id="a710339a-557f-4476-af81-2c0859811cc3" >
+			<ee:message >
+				<ee:set-attributes ><![CDATA[%dw 2.0
+output application/java
+---
+{
+	uriParams:{
+		userID: payload.donor_id as Number
+	}
+	
+}]]></ee:set-attributes>
+			</ee:message>
+		</ee:transform>
+		<flow-ref doc:name="GET Donor Details" doc:id="17ec641e-1f83-42f2-ba76-8532479ceb1a" name="getUserByID" target="userData"/>
+		<logger level="INFO" doc:name="Logger" doc:id="9726e116-2f6a-4ef5-9ccb-08b6a6de8eeb" message="#[vars.userData]"/>
+		<ee:transform doc:name="FB Post Payload" doc:id="6c4fe385-c179-4e19-81b5-8282572f83fd" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+    "link": "${fb.imageUrl}" ++ lower(payload.organ_name) ++ ".jpg",
+"message":"#" ++ (vars.userData.first_name ++ vars.userData.last_name) ++
+" 
+ wants to donate "++ payload.organ_name ++ "."
+
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<flow-ref doc:name="Add FB Post" doc:id="9a9c2375-f300-4631-8507-75d7c1359c2d" name="add-fb-page-feed"/>
+		<logger level="INFO" doc:name="Logger" doc:id="eb488e95-0bae-439f-9885-0113dd38df2b" message="#[payload]"/>
+	</flow>
+</mule>

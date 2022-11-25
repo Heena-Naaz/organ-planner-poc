@@ -1,0 +1,24 @@
+db:
+  host: "jdbc:postgresql://ec2-44-195-132-31.compute-1.amazonaws.com:5432/d41sn4tfe7abbb?sslmode=require"
+  driverClass: "org.postgresql.Driver"
+  user: "vncspdzmdlxxyj"
+  pass: "e40fd4982014818a369826569b68fa8700234c8438d6bf37c148d9d6dfeec501"
+
+http:
+  host: "localhost"
+  port: "8081"
+  
+fb:
+  host:   "graph.facebook.com"
+  pageId: "106786865589135"
+  userId: "101263739485206"
+  version: "v15.0"
+  imageUrl: "https://99blogspot.com/organ-images/"
+  
+common:
+  addressKeys: '["landmark", "address_line_1", "address_line_2", "place", "district", "state", "pincode"]'
+  userKeys    : '["first_name", "last_name", "email", "date_of_birth", "gender", "blood_group", "identity_card", "user_type", "identity_card_number", "phone", "age"]'
+  hospitalKeys: '["hospital_name", "email", "hospital_registration_number", "primary_phone"]'
+  currentAddressKeys: '["current_landmark", "current_address_line_1", "current_address_line_2", "current_place", "current_district", "current_state", "current_pincode"]'
+  receiveKeys : '["user_id","hospital_id","organ_name","transplant_priority","survival_time","medical_report","transformation_required","emergency_contact_address","emergency_contact_number","status"]'
+  donateKeys: '["user_id","hospital_id","current_address_id","blood_group","organ_name","status","alternate_phone_number"]'

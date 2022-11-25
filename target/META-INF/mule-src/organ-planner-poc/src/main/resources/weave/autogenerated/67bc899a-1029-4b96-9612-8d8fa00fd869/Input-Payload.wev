@@ -1,0 +1,15 @@
+%dw 2.0
+
+type auto_67bc899a_1029_4b96_9612_8d8fa00fd869_Input_Payload = {
+  current_address_line_2?: String, 
+  current_place?: String, 
+  alternate_contact_number?: Number, 
+  current_landmark?: String, 
+  current_state?: String, 
+  current_district?: String, 
+  current_postal_code?: Number, 
+  current_address_line_1?: String, 
+  status?: "archieve" | "close" | "open", 
+  _?: Any
+}
+
