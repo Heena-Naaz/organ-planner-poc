@@ -133,7 +133,7 @@ fun queryFields(item) = (item mapObject ((value, key, index) -> (key) : if(typeO
 				<db:update doc:name="Update Organ Request" doc:id="9ab0aaf3-10d2-4689-b633-cff4f6bfbe5d" config-ref="Database_Config">
 					<db:sql ><![CDATA[#[vars.updateRequestQuery]]]></db:sql>
 				</db:update>
-				<db:query-single doc:name="Query single" doc:id="edab5394-0a8d-4dfc-a705-225d1b857222" config-ref="Database_Config">
+				<db:query-single doc:name="Query single" doc:id="edab5394-0a8d-4dfc-a705-225d1b857222" config-ref="Database_Config" target="selectedData">
 					<db:sql ><![CDATA[SELECT * from receiver_requests where request_id =: request_id AND status =: status]]></db:sql>
 					<db:input-parameters ><![CDATA[#[{
 	request_id: vars.request_id,
@@ -150,7 +150,7 @@ output application/json
     "project": {
       "key": "OP"
     },
-    "summary": "Organ request for for patient ID " ++ payload.request_id ++ "and Patient Details are, Hospital ID :" ++ payload.hospital_id as String ++ 
+    "summary": "Organ request for patient ID " ++ payload.user_id reduce $ ++ "and Patient Details are, Hospital ID :" ++ payload.hospital_id as String ++ 
                      ", Emergency Contact Number : " ++ payload.emergency_contact_number as Number ++ 
                      ", Emergency Contact Address : " ++ payload.emergency_contact_address ++
                      ", Organ Required for : " ++ payload.organ_name ++
@@ -172,7 +172,7 @@ output application/json
 output application/json
 ---
 {
-	message: "The Organ request ID" ++ vars.request_id as String ++ " has been updated successfully"
+	message: "The Organ request ID " ++ vars.request_id as String ++ " has been updated successfully"
 }]]></ee:set-payload>
 					</ee:message>
 				</ee:transform>
