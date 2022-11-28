@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns:jira="http://www.mulesoft.org/schema/mule/jira"
+<mule xmlns:vm="http://www.mulesoft.org/schema/mule/vm"
+	xmlns:jira="http://www.mulesoft.org/schema/mule/jira"
 	xmlns:os="http://www.mulesoft.org/schema/mule/os"
 	xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:http="http://www.mulesoft.org/schema/mule/http"
 	xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties"
 	xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd 
 http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd 
 http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
 http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
@@ -33,5 +35,19 @@ http://www.mulesoft.org/schema/mule/jira http://www.mulesoft.org/schema/mule/jir
 	<jira:config name="Jira_Connector_Config" doc:name="Jira Connector Config" doc:id="aa0ead1c-1ba7-4dcd-8b38-43a6b5020d6f" >
 		<jira:basic-auth-connection username="${jira.userName}" password="${jira.apiToken}" baseUri="${jira.baseUri}"/>
 	</jira:config>
+	<vm:config name="VM_Config" doc:name="VM Config" doc:id="a489c6c5-681b-4d68-8046-6feb4f4a87b5" sendCorrelationId="ALWAYS" >
+		<vm:connection >
+			<reconnection >
+				<reconnect />
+			</reconnection>
+		</vm:connection>
+		<vm:queues >
+			<vm:queue queueName="donate-request-queue" maxOutstandingMessages="1000" />
+			<vm:queue queueName="receive-request-queue" maxOutstandingMessages="1000" />
+			<vm:queue queueName="donate-request-update" />
+			<vm:queue queueName="organ-request-update" />
+		
+</vm:queues>
+	</vm:config>
 
 </mule>

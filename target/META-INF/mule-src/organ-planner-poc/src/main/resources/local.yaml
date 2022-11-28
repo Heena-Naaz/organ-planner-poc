@@ -13,11 +13,12 @@ fb:
   pageId: "106786865589135"
   userId: "101263739485206"
   version: "v15.0"
-  imageUrl: "https://99blogspot.com/organ-images/"
+#  imageUrl: "https://99blogspot.com/organ-images/"
+  imageUrl: "https://my-aws-bucket-organ.s3.amazonaws.com/"
   
 jira:
  userName: "satish.kumar@bitsinglass.com" 
- apiToken: "XXq5VO48NgSDtX6swAbPB1FF"
+ apiToken: "yX4EFBhVhJL22QuqK3hF92B5"
  baseUri: "https://satishfordemo.atlassian.net"
   
 common:

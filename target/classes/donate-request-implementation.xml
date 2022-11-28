@@ -1,23 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:http="http://www.mulesoft.org/schema/mule/http"
-	xmlns:vm="http://www.mulesoft.org/schema/mule/vm"
-	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+<mule xmlns:jira="http://www.mulesoft.org/schema/mule/jira" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:vm="http://www.mulesoft.org/schema/mule/vm" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
 http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
 http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd
 http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
-http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd">
-	<vm:config name="VM_Config" doc:name="VM Config" doc:id="bd202afc-ef24-44dd-8096-0fa5b2ffbdcd" sendCorrelationId="ALWAYS" >
-		<vm:connection >
-			<reconnection >
-				<reconnect />
-			</reconnection>
-		</vm:connection>
-		<vm:queues >
-			<vm:queue queueName="donate-request-queue" maxOutstandingMessages="1000" />
-			<vm:queue queueName="receive-request-queue" maxOutstandingMessages="1000" />
-		</vm:queues>
-	</vm:config>
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/jira http://www.mulesoft.org/schema/mule/jira/current/mule-jira.xsd">
+	
 	<sub-flow name="insert-donate-request" doc:id="b0e5e6f4-233a-4744-8fe6-92c46298cb7a" >
 		<db:select doc:name="Select Donation By Donor &amp; Organ" doc:id="e4c282a1-14af-4790-84aa-8107b725f3df" config-ref="Database_Config" target="oldRequest">
 			<db:sql><![CDATA[SELECT request_id FROM donation_requests WHERE donor_id = :donor_id AND organ_name = :organ_name LIMIT 1]]></db:sql>
@@ -27,7 +18,7 @@ http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/cu
   organ_name: payload.organ_name
   }]]]></db:input-parameters>
 		</db:select>
-		<logger level="INFO" doc:name="Existing Request" doc:id="67f40449-c01e-4b20-85ab-7cbd6e9b44a2" message="#[vars.oldRequest]"/>
+		
 		<choice doc:name="Check If Request Exist" doc:id="1d0e449c-28cc-4b6a-9485-f9341e951c30" >
 			<when expression="#[isEmpty(vars.oldRequest)]">
 				<ee:transform doc:name="address Json Payload" doc:id="0ddb202c-eb67-41f4-98ff-1f749285ea43">
@@ -52,23 +43,22 @@ fun replaceKeys(key) = key replace "current_" with("")
 			<http:body><![CDATA[#[vars.addressFields]]]></http:body>
 		</http:request>
 				<db:insert doc:name="Insert Donate Request" doc:id="8951fdf9-4342-4d41-9b04-992a80612598" config-ref="Database_Config" autoGenerateKeys="true">
-			<db:sql><![CDATA[INSERT into donation_requests (donor_id,current_address_id,blood_group,organ_name,status,alternate_phone_number,created_at,updated_at) 
-VALUES (:donor_id,:current_address_id,:blood_group,:organ_name,:status,:alternate_phone_number,now(),now())]]></db:sql>
+			<db:sql><![CDATA[INSERT into donation_requests (donor_id,current_address_id,organ_name,status,alternate_phone_number,created_at,updated_at) 
+VALUES (:donor_id,:current_address_id,:organ_name,:status,:alternate_phone_number,now(),now())]]></db:sql>
 			<db:parameter-types>
-				<db:parameter-type key="blood_group" type="OTHER" />
 				<db:parameter-type key="status" type="OTHER" />
 			</db:parameter-types>
 			<db:input-parameters><![CDATA[#[{
   
   donor_id:payload.user_id,
   current_address_id:vars.address.address_id,
-  blood_group:payload.blood_group,
+//  blood_group:payload.blood_group,
   organ_name:payload.organ_name,
   status:payload.status,
   alternate_phone_number:payload.alternate_phone_number,
   }]]]></db:input-parameters>
 		</db:insert>
-				<vm:publish queueName="donate-request-queue" doc:id="843b3a65-fbeb-4a42-a4c2-bc00a701752f" config-ref="VM_Config" sendCorrelationId="AUTO" doc:name="Publish Recieve Request">
+				<vm:publish queueName="donate-request-queue" doc:id="843b3a65-fbeb-4a42-a4c2-bc00a701752f" config-ref="VM_Config" sendCorrelationId="AUTO" doc:name="Publish Donate Request">
 			<vm:content><![CDATA[#[payload.generatedKeys]]]></vm:content>
 		</vm:publish>
 				<ee:transform doc:name="Send Response" doc:id="f694b0e5-bd77-40ab-9285-b7f06b20e302">
@@ -77,8 +67,8 @@ VALUES (:donor_id,:current_address_id,:blood_group,:organ_name,:status,:alternat
 output application/json
 ---
 {
-	"message" : "The Organ Donate Request ID has been created successfully ",
-	"payload": payload
+	"message" : "The Organ Donate Request ID " ++ payload.generatedKeys.request_id as String ++" has been created successfully ",
+	
 }]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
@@ -168,7 +158,7 @@ output application/json
 
 fun queryFields(item) = (item mapObject ((value, key, index) -> (key) : if(typeOf(value) == Number) value else "'" ++ value as String ++ "'" ) pluck ((value, key, index) -> [(key) , value ] joinBy(" = "))) joinBy(", ")
 ---
-"UPDATE donation_requests SET " ++ queryFields(vars.donateFields) ++ " WHERE request_id = " ++ attributes.uriParams.'requestID']]></ee:set-variable>
+"UPDATE donation_requests SET " ++ queryFields(vars.donateFields) ++ " WHERE request_id = " ++ vars.existingRequest[0].request_id]]></ee:set-variable>
 							</ee:variables>
 						</ee:transform>
 						<logger level="INFO" doc:name="donate query" doc:id="c4823c0d-7f51-42ad-b8f3-a6d1cdcd2adf" message="#[vars.updateDonateQuery]"/>
@@ -327,10 +317,8 @@ payload map ( payload01 , indexOfPayload01 ) -> {
 	</sub-flow>
 	<flow name="test-flow" doc:id="83b3e7bb-3340-40ba-a178-23bdec4430d6" >
 		<http:listener doc:name="Listener" doc:id="8ff0944a-8825-449a-b3e5-d1e482c89bd7" config-ref="organ-planner-api-httpListenerConfig" path="/api/test"/>
-		<db:select doc:name="Select" doc:id="01af66a2-d5aa-42fd-a5c4-8a20b92fa025" config-ref="Database_Config">
-			<db:sql ><![CDATA[SELECT user_id, email FROM users WHERE user_id = 1]]></db:sql>
-		</db:select>
-		<logger level="INFO" doc:name="Logger" doc:id="ff2bf954-e58e-4f87-ba62-8ec1788dbe64" message="#[payload]"/>
+		<logger level="INFO" doc:name="Logger" doc:id="ff2bf954-e58e-4f87-ba62-8ec1788dbe64" message="#[payload]" />
+		<jira:create-rest-api3-issue doc:name="Create Issue" doc:id="87de2305-3a6d-48eb-8050-881f0de2785f" config-ref="Jira_Connector_Config"/>
 		<ee:transform doc:name="Transform Message" doc:id="015b0c8a-ca92-4dbb-8d46-12e0ae4f775b" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
@@ -340,7 +328,7 @@ payload]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
 	</flow>
-	<flow name="donate-request-implementationFlow" doc:id="1026cd6f-bca6-414a-9eab-9c38458ae7c9" >
+	<flow name="publish-donate-request-content" doc:id="1026cd6f-bca6-414a-9eab-9c38458ae7c9" >
 		<vm:listener queueName="donate-request-queue" doc:name="Listener" doc:id="dc5f48c4-5eab-456e-b9df-b51e4535db45" config-ref="VM_Config"/>
 		<logger level="INFO" doc:name="Logger" doc:id="5d811079-2720-4c96-84a8-688902861754" message="#[payload]"/>
 		<ee:transform doc:name="Set Attributes" doc:id="a710339a-557f-4476-af81-2c0859811cc3" >
@@ -358,6 +346,43 @@ output application/java
 		</ee:transform>
 		<flow-ref doc:name="GET Donor Details" doc:id="17ec641e-1f83-42f2-ba76-8532479ceb1a" name="getUserByID" target="userData"/>
 		<logger level="INFO" doc:name="Logger" doc:id="9726e116-2f6a-4ef5-9ccb-08b6a6de8eeb" message="#[vars.userData]"/>
+		<ee:transform doc:name="Jira Task Payload" doc:id="e0ca221d-2d9b-4962-a9a7-708cc84a4cc1" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="jiraPayload" ><![CDATA[%dw 2.0
+output application/json
+---
+
+{
+  "fields": {
+    "project": {
+      "key": "OP"
+    },
+    "summary": "Organ Donate Request from  Donor ID " ++ vars.userData.user_id as String ++ "and Donor Details are " ++ (vars.userData.first_name ++ " "++ vars.userData.last_name) ++ 
+                     ", Contact Number : " ++ vars.userData.phone as Number ++                     
+                     ", Organ name : " ++ payload.organ_name  ,
+                     
+    "issuetype":
+     {
+      "name": "Task",
+      "description":"Organ Donate Request"
+     } 
+  } 
+}]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<logger level="INFO" doc:name="Jira Input Payload" doc:id="3cf345b8-c35a-4575-a1c9-8dbf1a76db83" message="#[vars.jiraPayload]"/>
+		<jira:create-rest-api3-issue doc:name="Create Task for Donate" doc:id="38a6a3b6-588c-443e-9140-06d55c4ebbbb" config-ref="Jira_Connector_Config" target="jiraReturnPayload">
+			<jira:issue-update-details-content ><![CDATA[#[vars.jiraPayload]]]></jira:issue-update-details-content>
+		</jira:create-rest-api3-issue>
+		<db:update doc:name="Update Jira ID in Donate Request " doc:id="1797d765-39ab-4799-b5b7-3716e3b2afc7" config-ref="Database_Config" target="updatedDonateRequest">
+			<db:sql ><![CDATA[UPDATE  donation_requests SET jira_task_id = :jira_task_id WHERE request_id=:dn_id]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	jira_task_id:vars.jiraReturnPayload.id,
+	dn_id: payload.request_id
+}]]]></db:input-parameters>
+		</db:update>
 		<ee:transform doc:name="FB Post Payload" doc:id="6c4fe385-c179-4e19-81b5-8282572f83fd" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
@@ -367,7 +392,8 @@ output application/json
     "link": "${fb.imageUrl}" ++ lower(payload.organ_name) ++ ".jpg",
 "message":"#" ++ (vars.userData.first_name ++ vars.userData.last_name) ++
 " 
- wants to donate "++ payload.organ_name ++ "."
+ wants to donate "++ payload.organ_name ++ ".
+Login here to get More Details"
 
 }]]></ee:set-payload>
 			</ee:message>
