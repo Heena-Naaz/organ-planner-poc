@@ -120,251 +120,79 @@ output application/json
         </error-handler>
     </flow>
     <flow name="patch:\address\(addressID):application\json:organ-planner-api-config">
-        <logger level="INFO" doc:name="Before Updating Address" doc:id="6e2bea98-9ad4-4557-9efa-2b17a7bea0a5" message="Before Updating Address #[payload]" />
-        <flow-ref doc:name="updateAddress" doc:id="7e929b01-2039-4b8c-a782-d7304fa61e5f" name="updateAddress" />
-        <logger level="INFO" doc:name="After Updating Address" doc:id="03633b34-3ed9-4cba-8da4-b6374371f1e1" message="After Updating Address #[payload]" />
+        <logger level="INFO" doc:name="Before Updating Address" doc:id="ce84e537-58ea-4118-9028-f0124ab27712" message="Before Updating Address #[payload]" />
+        <flow-ref doc:name="updateAddress" doc:id="fe2552bf-4bd5-4305-be57-53394b09a5c1" name="updateAddress" />
+        <logger level="INFO" doc:name="After Updating Address" doc:id="9bc3cfab-c00c-40b7-96f5-9385cb73abe2" message="After Updating Address #[payload]" />
     </flow>
-    <flow name="patch:\hospital\(hospitalID):application\json:organ-planner-api-config">
-        <ee:transform>
-            <ee:variables>
-                <ee:set-variable variableName="hospitalID">attributes.uriParams.'hospitalID'</ee:set-variable>
-            </ee:variables>
-        </ee:transform>
-        <ee:transform>
-            <ee:message>
-                <ee:set-payload><![CDATA[%dw 2.0
-output application/json
----
-"Hospital has been updated successfully"]]></ee:set-payload>
-            </ee:message>
-        </ee:transform>
+   <flow name="patch:\hospital\(hospitalID):application\json:organ-planner-api-config">
+        <flow-ref doc:name="update Hospital flow" doc:id="4a1176b5-2bc5-4613-aabb-74cc183005c1" name="UpdateHospital"/>
     </flow>
     <flow name="patch:\donate-request\(requestID):application\json:organ-planner-api-config">
-        <flow-ref doc:name="UpdateDonateRequest" doc:id="537c1731-5c85-4a2d-9fe8-cad7f6cfb6e2" name="update-donate-request"/>
+        <flow-ref doc:name="UpdateDonateRequest" doc:id="8bfa06ce-1b2c-4e06-99ad-fced761c3abc" name="update-donate-request"/>
     </flow>
     <flow name="patch:\user\(userID):application\json:organ-planner-api-config">
-        <logger level="INFO" doc:name="Before Updating User" doc:id="865605ed-0844-4f23-9de4-af6da12572b3" message="Before Updating User #[payload]" />
-        <flow-ref doc:name="updateUser" doc:id="38aed3f7-092b-480a-8395-8d78c42a83a7" name="updateUser" />
-        <logger level="INFO" doc:name="After Updating User" doc:id="02f4571f-8886-46d7-ad0e-1099815ef68e" message="After Updating User #[payload]" />
+        <logger level="INFO" doc:name="Before Updating User" doc:id="7562fcf3-123f-4f04-89d4-5543cc662dae" message="Before Updating User #[payload]" />
+        <flow-ref doc:name="updateUser" doc:id="1bd96807-d0b5-4db4-a582-36849fd41c28" name="updateUser" />
+        <logger level="INFO" doc:name="After Updating User" doc:id="0b3a2d4f-e79c-462c-bb85-f0224b796075" message="After Updating User #[payload]" />
     </flow>
     <flow name="get:\hospital\all:organ-planner-api-config">
-        <ee:transform>
-            <ee:message>
-                <ee:set-payload><![CDATA[%dw 2.0
-output application/json
----
-[
-  {
-    hosptial_id: 1,
-    hospital_name: "Fortis Hospital",
-    email: "fortis123@gmail.com",
-    primary_phone: 9547863012,
-    landmark: "Opposite Park",
-    address_line_1: "123 Street Sector 62",
-    district: "SAS Nagar",
-    place: "Mohali",
-    state: "Punjab",
-    pincode: 16055,
-    hospital_registration_number: "fortis4659"
-  }, 
-  {
-    hosptial_id: 2,
-    hospital_name: "Ivy Hospital",
-    email: "ivy.hospital@gmail.com",
-    primary_phone: 8874563219,
-    landmark: "Near PCL Chownk",
-    address_line_1: "123 Street Sector 71",
-    district: "SAS Nagar",
-    place: "Mohali",
-    state: "Punjab",
-    pincode: 16055,
-    hospital_registration_number: "ivy8895"
-  }
-]]]></ee:set-payload>
-            </ee:message>
-        </ee:transform>
-    </flow>
-    <flow name="get:\user\all:organ-planner-api-config">
-        <logger level="INFO" doc:name="Before Getting All Users" doc:id="8c765bcc-1eec-499b-8b00-f7cf95759a93" message="Before Getting All Users #[payload]" />
-        <flow-ref doc:name="getAllUsers" doc:id="0edf6db9-711f-4958-9983-fae867e6ec9e" name="getAllUsers" />
-        <logger level="INFO" doc:name="After Getting All Users" doc:id="6a3b7d0e-f6e6-4ee0-b1bf-5b58f30d5e65" message="After Getting All Users #[payload]" />
-    </flow>
-    <flow name="get:\donate-request\all:organ-planner-api-config">
-        <flow-ref doc:name="GetAllDonateRequests" doc:id="e01ed1bd-08fc-4a3f-8a7a-bb4b97566535" name="get-all-donate-request"/>
-		
+        <flow-ref doc:name="calls ViewHospital" doc:id="86e24990-1f23-48f9-a245-d87b277e40b0" name="ViewAllHospitals"/>
     </flow>
     <flow name="get:\hospital\(hospitalID):organ-planner-api-config">
-        <ee:transform>
-            <ee:variables>
-                <ee:set-variable variableName="hospitalID">attributes.uriParams.'hospitalID'</ee:set-variable>
-            </ee:variables>
-        </ee:transform>
-        <ee:transform>
-            <ee:message>
-                <ee:set-payload><![CDATA[%dw 2.0
-output application/json
----
-{
-  hosptial_id: 1,
-  hospital_name: "Fortis Hospital",
-  email: "fortis123@gmail.com",
-  primary_phone: 9547863012,
-  landmark: "Opposite Park",
-  address_line_1: "123 Street Sector 62",
-  district: "SAS Nagar",
-  place: "Mohali",
-  state: "Punjab",
-  pincode: 16055,
-  hospital_registration_number: "fortis4659"
-}]]></ee:set-payload>
-            </ee:message>
-        </ee:transform>
+        <flow-ref doc:name="Flow Reference" doc:id="6e74f0ce-5dac-4bce-8022-98bb06a65894" name="ViewHospitalByID"/>
+	</flow>
+    <flow name="get:\user\all:organ-planner-api-config">
+        <logger level="INFO" doc:name="Before Getting All Users" doc:id="cfd92810-7966-4cda-9e4f-457204ce148d" message="Before Getting All Users #[payload]" />
+        <flow-ref doc:name="getAllUsers" doc:id="0a345adc-5341-49ab-9197-a6492a41d604" name="getAllUsers" />
+        <logger level="INFO" doc:name="After Getting All Users" doc:id="c29fe31a-0298-48d8-baa3-8ceb13924ec3" message="After Getting All Users #[payload]" />
     </flow>
+    <flow name="get:\donate-request\all:organ-planner-api-config">
+        <flow-ref doc:name="GetAllDonateRequests" doc:id="c84edae2-e496-491b-ad5a-3b292ad04d78" name="get-all-donate-request"/>
+		
+    </flow>
+    
     <flow name="get:\donate-request\(requestID):organ-planner-api-config">
-        <flow-ref doc:name="getDonateRequestBYRequestID" doc:id="90277940-4cde-4f98-9beb-2d90d6ce5a5c" name="get-donate-request-by-requestId"/>
+        <flow-ref doc:name="getDonateRequestBYRequestID" doc:id="4c7cb075-7c23-4306-a745-89c3ce7a7259" name="get-donate-request-by-requestId"/>
     </flow>
     <flow name="get:\user\(userID):organ-planner-api-config">
-        <logger level="INFO" doc:name="Before Getting User By ID" doc:id="f8552b54-31fb-4327-86eb-763c255a01d0" message="Before Getting User By ID #[payload]" />
-        <flow-ref doc:name="getUserByID" doc:id="ff580b63-5718-42bd-bc4e-108d62a0135d" name="getUserByID" />
-        <logger level="INFO" doc:name="After Getting User By ID" doc:id="50dee092-0f1b-4905-86f1-84001989d354" message="After Getting User By ID #[payload]" />
+        <logger level="INFO" doc:name="Before Getting User By ID" doc:id="aa6c621c-0163-447d-aed8-b435f7bc41fb" message="Before Getting User By ID #[payload]" />
+        <flow-ref doc:name="getUserByID" doc:id="ebf31ef9-43f2-4529-9be6-4fed60f184f3" name="getUserByID" />
+        <logger level="INFO" doc:name="After Getting User By ID" doc:id="1f8a609d-5951-4696-a5af-d474b99fd782" message="After Getting User By ID #[payload]" />
     </flow>
     <flow name="post:\address:application\json:organ-planner-api-config">
-        <logger level="INFO" doc:name="Before Inserting Address" doc:id="ad5719cb-4ff1-472b-b414-87fb22285208" message="Before Inserting Address #[payload]" />
-        <flow-ref doc:name="insertAddress" doc:id="89f6b9a0-ad51-4eef-89e5-4d0916e753eb" name="insertAddress" />
-        <logger level="INFO" doc:name="After Inserting Address" doc:id="a40c5520-f83a-4149-a486-96668afded0b" message="After Inserting Address #[payload]" />
+        <logger level="INFO" doc:name="Before Inserting Address" doc:id="3a0774de-43c4-4fca-b4f9-3571c146a993" message="Before Inserting Address #[payload]" />
+        <flow-ref doc:name="insertAddress" doc:id="31893d28-7f98-471d-90f0-107212e7e7bd" name="insertAddress" />
+        <logger level="INFO" doc:name="After Inserting Address" doc:id="8c8c04af-11f0-402a-80f2-1a2cdc275554" message="After Inserting Address #[payload]" />
     </flow>
     <flow name="post:\donate-request:application\json:organ-planner-api-config">
-		<flow-ref doc:name="InsertDonateRequest" doc:id="f61a54ca-5ae5-433c-8012-a2c0df1e3ff3" name="insert-donate-request"/>
+		<flow-ref doc:name="InsertDonateRequest" doc:id="5f2e7f60-6564-4d66-b04c-f6a22cb1206f" name="insert-donate-request"/>
     </flow>
     <flow name="post:\hospital:application\json:organ-planner-api-config">
-        <ee:transform>
-            <ee:message>
-                <ee:set-payload><![CDATA[%dw 2.0
-output application/json
----
-"The Hospital ID 1 has been successfully created"]]></ee:set-payload>
-            </ee:message>
-        </ee:transform>
+        <flow-ref doc:name="InsertHospital" doc:id="42ed1a73-0c4e-40cf-acb8-344710d2d2b8" name="insertHospital"/>
     </flow>
     <flow name="post:\user:application\json:organ-planner-api-config">
-        <logger level="INFO" doc:name="Before Inserting User" doc:id="b1fca5b8-896d-4a83-8470-a16804ce5d69" message="Before Inserting User #[payload]" />
-        <flow-ref doc:name="insertUser" doc:id="c2fa17d8-5c4d-4ce3-b6f9-695badf8869d" name="insertUser" />
-        <logger level="INFO" doc:name="After Inserting User" doc:id="a49abb8e-e9c9-4ddc-b881-37a1c31c48c6" message="After Inserting User #[payload]" />
+        <logger level="INFO" doc:name="Before Inserting User" doc:id="488adb18-7fe9-42ad-b790-38cb280c05cc" message="Before Inserting User #[payload]" />
+        <flow-ref doc:name="insertUser" doc:id="b985efb4-5698-4bbe-a8f1-7b8a96017569" name="insertUser" />
+        <logger level="INFO" doc:name="After Inserting User" doc:id="ab4fa2ad-5296-49bb-89d9-dff976b5a584" message="After Inserting User #[payload]" />
     </flow>
-    <flow name="patch:\organ-request\(requestID):application\json:organ-planner-api-config">
-        <ee:transform>
-            <ee:variables>
-                <ee:set-variable variableName="requestID">attributes.uriParams.'requestID'</ee:set-variable>
-            </ee:variables>
-        </ee:transform>
-        <ee:transform>
-            <ee:message>
-                <ee:set-payload><![CDATA[%dw 2.0
-output application/json
----
-"Organ Request has been updated successfully"]]></ee:set-payload>
-            </ee:message>
-        </ee:transform>
+    	<flow name="patch:\organ-request\(requestID):application\json:organ-planner-api-config">
+		<logger level="INFO" doc:name="Before Updating Organ Request" doc:id="a6072725-3f03-45db-a7f8-66390d7b01d1" message="Before Updating Organ Request  #[payload]"/>
+		<flow-ref doc:name="UpdateOrganRequest" doc:id="b054ad69-0277-40f4-b2ef-b089a0a051a6" name="UpdateOrganRequest"/>
+		<logger level="INFO" doc:name="After Updating Organ Request" doc:id="56d706c4-1ea1-41b6-b61f-5d30de786a5a" message="After Updating Organ Request  #[payload]"/>
     </flow>
     <flow name="get:\organ-request\all:organ-planner-api-config">
-        <ee:transform>
-            <ee:message>
-                <ee:set-payload><![CDATA[%dw 2.0
-output application/json
----
-[
-  {
-    request_id: 1,
-    first_name: "Jasdev",
-    last_name: "Sharma",
-    phone: 9916888307,
-    address_line_1: "123 Street Sector 62",
-    place: "Mohali",
-    state: "Punjab",
-    identity_card: "pan_card",
-    identity_card_number: "ATLP1234",
-    hospital_name: "Fortis Hospital",
-    email: "fortis123@gmail.com",
-    hospital_registration_number: "fortis4659",
-    blood_group: "O+",
-    emergency_contact_number: 956302178,
-    emergency_contact_address: "71 Street, Sector 31, Chandigarh, Punjab",
-    organ_name: "Liver",
-    transplant_priority: "high",
-    survival_time: "2 Years",
-    transformation_required: true,
-    status: "open"
-  }, 
-  {
-    request_id: 2,
-    first_name: "Jasdev",
-    last_name: "Sharma",
-    phone: 9916888307,
-    address_line_1: "123 Street Sector 62",
-    place: "Mohali",
-    state: "Punjab",
-    identity_card: "pan_card",
-    identity_card_number: "ATLP1234",
-    hospital_name: "Fortis Hospital",
-    email: "fortis123@gmail.com",
-    hospital_registration_number: "fortis4659",
-    blood_group: "O+",
-    emergency_contact_number: 956302178,
-    emergency_contact_address: "71 Street, Sector 31, Chandigarh, Punjab",
-    organ_name: "Kidney",
-    transplant_priority: "high",
-    survival_time: "2 Years",
-    transformation_required: true,
-    status: "open"
-  }
-]]]></ee:set-payload>
-            </ee:message>
-        </ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="351a5d88-2c34-459f-b263-8e2c274e4ce0" message="Before get all organ request  #[payload]"/>
+		<flow-ref doc:name="Flow Reference" doc:id="27cd5575-8ec2-473a-91af-eeb5c738bd38" name="getAllOrganRequest"/>
+		<logger level="INFO" doc:name="Logger" doc:id="e0292517-e295-4d3f-a1d0-bd68c98fd4bf" />
     </flow>
-    <flow name="get:\organ-request\(requestID):organ-planner-api-config">
-        <ee:transform>
-            <ee:variables>
-                <ee:set-variable variableName="requestID">attributes.uriParams.'requestID'</ee:set-variable>
-            </ee:variables>
-        </ee:transform>
-        <ee:transform>
-            <ee:message>
-                <ee:set-payload><![CDATA[%dw 2.0
-output application/json
----
-{
-  request_id: 1,
-  first_name: "Jasdev",
-  last_name: "Sharma",
-  phone: 9916888307,
-  address_line_1: "123 Street Sector 62",
-  place: "Mohali",
-  state: "Punjab",
-  identity_card: "pan_card",
-  identity_card_number: "ATLP1234",
-  hospital_name: "Fortis Hospital",
-  email: "fortis123@gmail.com",
-  hospital_registration_number: "fortis4659",
-  blood_group: "O+",
-  emergency_contact_number: 956302178,
-  emergency_contact_address: "71 Street, Sector 31, Chandigarh, Punjab",
-  organ_name: "Liver",
-  transplant_priority: "high",
-  survival_time: "2 Years",
-  transformation_required: true,
-  status: "open"
-}]]></ee:set-payload>
-            </ee:message>
-        </ee:transform>
+    <flow name="get:\organ-request\(requestID):organ-planner-api-config" doc:id="b507fa6f-b3bb-49ce-b4f3-cbb5a2496987">
+        <logger level="INFO" doc:name="Logger" doc:id="86c02d08-19cf-4e1b-8d55-ffcd445f8489" message="Before get organ request by id  #[payload]"/>
+		<flow-ref doc:name="Flow Reference" doc:id="35d1b767-6d68-4d27-95ca-c2aba838b296" name="get-request-organ-by-id"/>
+		<logger level="INFO" doc:name="Logger" doc:id="87790e19-5b90-4303-b87c-be52465be3d5" message="After get all organ request #[payload]"/>
     </flow>
-    <flow name="post:\organ-request:application\json:organ-planner-api-config">
-		<ee:transform doc:name="Transform Message" doc:id="5fd30863-6939-458b-8c2a-dc6adb774690" >
-			<ee:message >
-				<ee:set-payload ><![CDATA[%dw 2.0
-output application/java
----
-"The Organ Request ID 1 has been successfully created"]]></ee:set-payload>
-			</ee:message>
-		</ee:transform>
+    <flow name="post:\organ-request:application\json:organ-planner-api-config" doc:id="181b5cf4-c901-498c-b8c3-53ab3b9d344f">
+		<logger level="INFO" doc:name="Before Inserting Organ Request" doc:id="eef44f79-3e98-4fdb-bd0c-a77a66397640" message="Before Inserting Organ Request  #[payload]"/>
+		<flow-ref doc:name="InsertOrganRequest" doc:id="61ce068c-c2c0-45e4-bef2-d1956e889bfe" name="InsertOrganRequest"/>
+		<logger level="INFO" doc:name="After get organ request" doc:id="dfafd340-2410-4c56-8895-e5abe81c27d7" message="After get organ request  #[payload]"/>
     </flow>
 </mule>

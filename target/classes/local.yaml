@@ -15,6 +15,11 @@ fb:
   version: "v15.0"
   imageUrl: "https://99blogspot.com/organ-images/"
   
+jira:
+ userName: "satish.kumar@bitsinglass.com" 
+ apiToken: "XXq5VO48NgSDtX6swAbPB1FF"
+ baseUri: "https://satishfordemo.atlassian.net"
+  
 common:
   addressKeys: '["landmark", "address_line_1", "address_line_2", "place", "district", "state", "pincode"]'
   userKeys    : '["first_name", "last_name", "email", "date_of_birth", "gender", "blood_group", "identity_card", "user_type", "identity_card_number", "phone", "age"]'

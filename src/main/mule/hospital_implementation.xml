@@ -1,0 +1,302 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd">
+	<sub-flow name="ViewAllHospitals" doc:id="8d6a6c16-dcd7-4cd2-8ec4-78f2a810939a" >
+		<db:select doc:name="Select" doc:id="e872ae25-232f-43ac-b3ff-7fad0f5a8f70" config-ref="Database_Config" target="viewhospitals">
+			<db:sql ><![CDATA[SELECT h.hospital_id, h.hospital_name, h.email, h.hospital_registration_number, h.primary_phone, h.created_at, h.updated_at, ad.landmark, ad.address_line_1, ad.district, ad.place, ad.state, ad.pincode FROM hospitals as h
+join address as ad ON h.address_id = ad.address_id]]></db:sql>
+		</db:select>
+		<ee:transform doc:name="Transform Message" doc:id="08d7ef1c-2f4a-4933-80c8-70ce6d5cb4ca" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+vars.viewhospitals]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</sub-flow>
+	<sub-flow name="ViewHospitalByID" doc:id="d0ff586b-50f5-4fe4-9ad6-564bd43e558f" >
+		<db:select doc:name="SelectByhospital_id" doc:id="133ef743-5630-4bfb-81a7-cfd155e25eeb" config-ref="Database_Config" target="ViewByID">
+			<db:sql><![CDATA[select h.hospital_id, h.hospital_name, h.email, h.primary_phone, h.hospital_registration_number, ad.landmark, ad.address_line_1, ad.district, ad.place, ad.state, ad.pincode FROM hospitals as h
+join address as ad ON h.address_id = ad.address_id where h.hospital_id =:hospital_id]]></db:sql>
+			<db:input-parameters><![CDATA[#[{
+	'hospital_id' : attributes.UriParams.hospitalID
+}]]]></db:input-parameters>
+		</db:select>
+		<ee:transform doc:name="Send Response" doc:id="58616bec-5f5b-401d-90eb-bbed278e413f" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+
+if(! isEmpty(vars.ViewByID))
+	vars.ViewByID
+	
+else
+
+"Details for ID " ++ attributes.uriParams.hospitalID as String ++ " does not exist!! Please enter valid HospitalID "]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</sub-flow>
+	<sub-flow name="insertHospital" doc:id="c0156665-72ab-4eef-ba40-ad7409db63f6" >
+		<set-variable value="#[payload]" doc:name="hospitalData" doc:id="efa20a37-935f-4ede-bd26-e2ea4e38a20d" variableName="hospitalData"/>
+		<db:select doc:name="getRegNum" doc:id="82f28dfd-0f61-4c27-bba7-490b37a3a4dd" config-ref="Database_Config" target="regnum">
+			<db:sql ><![CDATA[select email,hospital_id  from hospitals where email =:email]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	'email' : payload.email
+}]]]></db:input-parameters>
+		</db:select>
+		<choice doc:name="Choice" doc:id="af359fcc-d0da-4def-b2d7-aa491ceff987" >
+			<when expression="#[!isEmpty(vars.hospitalData)]">
+				<http:request method="POST" doc:name="call Address SAPI" doc:id="bc7eaec0-b098-4968-8e17-2e174eff0cdd" path="/api/address" config-ref="HTTP_Request_configuration"/>
+				<logger level="INFO" doc:name="address response" doc:id="3971aafd-199a-4796-8a6e-8a847d5a1fbf" message="#[payload]"/>
+				<set-variable value="#[payload.address_id]" doc:name="addressID" doc:id="2cf5ac17-1751-4aef-9843-b09689b00b6d" variableName="addressID"/>
+				<db:insert doc:name="Insert" doc:id="dea852ef-6555-44f7-90fc-6f7aa4285839" config-ref="Database_Config" target="var1" autoGenerateKeys="true">
+			<db:sql><![CDATA[insert into hospitals (hospital_name, email, primary_phone, hospital_registration_number, address_id) values(:hospital_name, :email, :primary_phone, :hospital_registration_number, :address_id);
+]]></db:sql>
+			<db:input-parameters><![CDATA[#[{
+  	"hospital_name": vars.hospitalData.hospital_name,
+  	"email": vars.hospitalData.email,
+  	"primary_phone": vars.hospitalData.primary_phone,
+  	"hospital_registration_number": vars.hospitalData.hospital_registration_number,
+  	"address_id" : vars.addressID as Number
+}]]]></db:input-parameters>
+		</db:insert>
+				<set-variable value="#[vars.var1.generatedKeys.hospital_id]" doc:name="hospitalID" doc:id="8291d944-783c-47c3-9ba7-53176805da80" variableName="hospitalID"/>
+				<logger level="INFO" doc:name="hopsitalID" doc:id="cac4afa8-ace2-4ddd-bd7e-cccd89f6bdc9" message="Hospital ID is : #[vars.hospitalID]"/>
+				<ee:transform doc:name="Transform Message" doc:id="a6da7ab6-9fac-4654-9eb5-12a8cd7afec1" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	message: "The hospital ID " ++ vars.hospitalID as String ++ " has been successfully created"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Transform Message" doc:id="e6d2f761-5c8d-4368-b60b-7b84d40bdd01">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	message: "hospital is already existed"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+			</otherwise>
+		</choice>
+	</sub-flow>
+	<sub-flow name="InsertAddress" doc:id="e367dcca-30f8-4e0b-a1ae-1f5a2cd07086" >
+		<db:insert doc:name="Insert Address" doc:id="3a7756fb-571f-44a6-84e6-c7d0a516fd65" config-ref="Database_Config" target="addAddress">
+			<db:sql ><![CDATA[INSERT INTO address (landmark, address_line_1, address_line_2, place, district, state, pincode, created_at, updated_at)
+VALUES (:landmark, :address_line_1, :address_line_2, :place, :district, :state, :pincode, now(), now())]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+  "landmark": payload.landmark default null,
+  "address_line_1": payload.address_line_1,
+  "address_line_2": payload.address_line_2 default null,
+  "district": payload.district default null,
+  "place": payload.place,
+  "state": payload.state,
+  "pincode": payload.pincode
+}]]]></db:input-parameters>
+		</db:insert>
+		<set-variable value="#[vars.address.generatedKeys.address_id]" doc:name="addressID" doc:id="99a8397d-d6d5-4435-822d-8b4f3bd2b4b1" variableName="addressID"/>
+		<ee:transform doc:name="Transform Message" doc:id="77339555-0635-4e92-9f6e-950314206fdf" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"address_id": vars.address_id
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</sub-flow>
+	<sub-flow name="UpdateHospital" doc:id="9ffed775-7015-475a-b707-ce04c2d35175" >
+		<set-variable value="#[message.payload]" doc:name="inputData" doc:id="017a486d-25f2-44e7-a73c-a0100f6ca6cd" variableName="inputData"/>
+		<logger level="INFO" doc:name="input to hospital and address" doc:id="a9494824-e904-4e1f-98ad-d796c6c22145" message="#[payload]"/>
+		<db:select doc:name="getHospitalID" doc:id="c18f49c9-b8d2-43af-bb8d-921eb0b5f353" config-ref="Database_Config" target="hospitaldata">
+			<db:sql ><![CDATA[select * from hospitals where hospital_id =:hospital_id]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	hospital_id : attributes.uriParams.hospitalID
+	
+	}]]]></db:input-parameters>
+		</db:select>
+		<choice doc:name="choice" doc:id="69b94122-4291-4b9a-9530-b2e4200fed14" >
+			<when expression='#[!isEmpty(vars.hospitaldata)]'>
+				<set-variable value="#[vars.hospitaldata.address_id reduce $]" doc:name="address_id" doc:id="8c2dcf6b-012e-43a2-a163-4feea5d3a4d6" variableName="address_id"/>
+				<set-variable value="#[vars.hospitaldata.hospital_id reduce $]" doc:name="hospital_id" doc:id="76b99d82-d692-4710-a1ad-02bb0568d057" variableName="hospital_id"/>
+				<ee:transform doc:name="Transform Message" doc:id="84fc037c-8596-485f-abb0-8cb8b17fd1a9">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+var hospitalKeys = ["hospital_name", "email","hospital_registration_number", "primary_phone","first_name", "last_name", "email", "date_of_birth", "gender", "blood_group", "identity_card", "user_type", "identity_card_number", "phone", "age"]
+var addressFields = payload -- hospitalKeys
+---
+addressFields]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<choice doc:name="Choice" doc:id="43f097e2-9d0f-4736-bf25-a712e293e4a9">
+					<when expression="#[!isEmpty(payload)]">
+						<http:request method="PATCH" doc:name="calls Update address SAPI" doc:id="14b17c51-71fa-4ebc-ba12-b40ac1f08b8f" path="/api/address/{addressID}" config-ref="HTTP_Request_configuration">
+					<http:uri-params><![CDATA[#[output application/java
+---
+{
+	addressID : vars.address_id
+}]]]></http:uri-params>
+				</http:request>
+					</when>
+				</choice>
+				<ee:transform doc:name="hospitalData" doc:id="e83de34a-2d1a-4538-b771-70920b5728d8">
+					<ee:message>
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="hospitaldata" ><![CDATA[%dw 2.0
+output application/json
+var addressKeys = ["landmark", "address_line_1", "address_line_2", "place", "district", "state", "pincode"]
+var HospitalFields = vars.inputData -- addressKeys
+---
+HospitalFields]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+				<logger level="INFO" doc:name="Logger" doc:id="45253c0f-e6d0-4bd8-9d0c-3934353e1c72" message="#[payload]" />
+				<choice doc:name="Choice" doc:id="a05a8ba5-8da3-49fd-b41c-221dad0dd433">
+					<when expression="#[!isEmpty(vars.hospitaldata)]">
+						<ee:transform doc:name="Transform Message" doc:id="68e00b51-be23-4c9d-91ff-22d891976c0e">
+					<ee:message>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="update"><![CDATA[%dw 2.0
+output application/json
+
+fun queryFields(item) = (item mapObject ((value, key, index) -> (key) : if(typeOf(value) == Number) value else "'" ++ value ++ "'" ) pluck ((value, key, index) -> [(key) , value ] joinBy(" = "))) joinBy(", ")
+---
+
+"UPDATE hospitals SET " ++ queryFields(vars.hospitaldata) ++ " WHERE hospital_id = " ++ vars.hospital_id]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+						<db:update doc:name="Update" doc:id="88d7e5c2-8282-4b84-9290-cab7dc558590" config-ref="Database_Config" target="updateHospital">
+					<db:sql><![CDATA[#[vars.update]]]></db:sql>
+				</db:update>
+					</when>
+				</choice>
+				<logger level="INFO" doc:name="update query" doc:id="18ef45e7-36f6-4285-b66a-96dfc49db818" message="#[payload]"/>
+				<ee:transform doc:name="Transform Message" doc:id="4232470b-916d-43cb-a79e-1b9ac2323c75" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+
+---
+{
+	message: "The hospital ID " ++ vars.hospital_id as String ++ " has been updated successfully"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="error message" doc:id="f3375ee9-3c66-40af-a428-4174fd2106c8" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	message: "User has not been found"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</sub-flow>
+	<flow name="hospital_implementationFlow" doc:id="88d6c10f-56bf-4a1e-bedb-0b7f26cb5853" >
+		<http:listener doc:name="Listener" doc:id="d30cdf0e-3cef-449b-a63c-4c20890c92bc" config-ref="organ-planner-api-httpListenerConfig" path="/update/{ID}"/>
+		<set-variable value="#[message.payload]" doc:name="Set Variable" doc:id="8c232c6c-972e-4f6a-ae32-9f8fc8c44752" variableName="input"/>
+		<db:select doc:name="Select" doc:id="af967da1-da86-4715-83e3-30b463d54d9d" config-ref="Database_Config" target="hospitalID">
+			<db:sql ><![CDATA[select * from hospitals where hospital_id =:hospital_id]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	'hospital_id' : attributes.uriParams.ID
+}]]]></db:input-parameters>
+		</db:select>
+		<ee:transform doc:name="Transform Message" doc:id="d2161ec6-1813-451d-a805-3868e9408502" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+vars.hospitalID]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<set-variable value="#[payload]" doc:name="dataof hospital" doc:id="b51d5ed7-4448-449b-9024-8a5e4174a23b" variableName="HD"/>
+		<logger level="INFO" doc:name="Logger" doc:id="1f104029-3db3-470d-924c-864c08761f49" message="#[payload]"/>
+		<set-variable value="#[payload.address_id]" doc:name="AID" doc:id="8a701d52-e15c-40d6-bf0f-3ff2ed8821de" variableName="addressID"/>
+		<scatter-gather doc:name="Scatter-Gather" doc:id="2fab1adf-13a4-45b3-94b4-f4fb41142b1d" >
+			<route >
+				<ee:transform doc:name="Transform Message" doc:id="4942aaea-a900-45ec-95c0-b73a9bb0ec50">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"landmark" : vars."input".landmark,
+	"address_line_1" : vars."input".address_line_1,
+	"district" : vars."input".district,
+	"place" : vars."input".place,
+	"state" : vars."input".state,
+	"pincode" : vars."input".pincode,
+	"address_id" : vars.addressID
+	
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<http:request method="POST" doc:name="Request" doc:id="b52c483f-67e8-4ad9-979a-94e639992726" path="/address/{address_id}" config-ref="HTTP_Request_configuration">
+					<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	address_id : vars.AID
+}]]]></http:uri-params>
+				</http:request>
+				<db:update doc:name="Update" doc:id="2d24752a-4fb1-4db4-a477-56dbe63b7f21" config-ref="Database_Config" target="updateAdd">
+					<db:sql ><![CDATA[update address set landmark =:landmark, address_line_1 =:address_line_1, address_line_2 =:address_line_2, place =:place, district =:district, state =:state, pincode =:pincode where address_id =:address_id ]]></db:sql>
+					<db:input-parameters ><![CDATA[#[{
+	'landmark' : payload.landmark default null,
+	'address_line_1' : payload.address_line_1,
+	'address_line_2' : payload.address_line_2 default null,
+	'place' : payload.place,
+	'district' : payload.district,
+	'state' : payload.state,
+	'pincode' : payload.pincode,
+	'address_id' : payload.address_id
+	
+	
+}]]]></db:input-parameters>
+				</db:update>
+			</route>
+			<route >
+				<db:update doc:name="Update" doc:id="1932483f-9a61-4bfd-9135-a59b2e29c820" config-ref="Database_Config" target="update">
+					<db:sql ><![CDATA[update hospitals set hospital_name =:hospital_name, email =:email, primary_phone =:primary_phone, hospital_registration_number =:hospital_registration_number where hospital_id =:hospital_id ]]></db:sql>
+					<db:input-parameters ><![CDATA[#[{
+	'hospital_name' : vars."input".hospital_name default vars.HD.hospital_name,
+	'email' : vars."input".email default vars.HD.email,
+	'primary_phone' : vars."input".primary_phone default vars.HD.primary_phone,
+	'hospital_registration_number' : vars."input".hospital_registration_number default vars.HD.hospital_registration_number,
+	'hospital_id' : vars.HD.address_id
+}]]]></db:input-parameters>
+				</db:update>
+			</route>
+		</scatter-gather>
+		<ee:transform doc:name="Transform Message" doc:id="682794d6-ee69-4908-9f7e-8621d0a0dc94" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+"Update was successful"]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+</mule>
